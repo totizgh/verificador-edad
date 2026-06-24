@@ -3,35 +3,41 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
-  <title>✅ Verificador v5</title>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css" />
+  <title>✅ Verificador v6</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     html, body { height: 100%; background: #f5f5f3; font-family: system-ui, -apple-system, sans-serif; }
     #app { min-height: 100dvh; display: flex; flex-direction: column; align-items: center; padding: 1rem; gap: 1rem; }
+
     #result-banner { display: none; width: 100%; max-width: 420px; border-radius: 16px; padding: 2.5rem 1.5rem; flex-direction: column; align-items: center; gap: 0.5rem; text-align: center; }
     #result-banner.mayor { background: #1D9E75; display: flex; }
     #result-banner.menor { background: #E24B4A; display: flex; }
     #result-icon { font-size: 72px; line-height: 1; }
     #result-label { font-size: 48px; font-weight: 700; color: #fff; letter-spacing: 1px; }
     #result-detail { font-size: 15px; color: rgba(255,255,255,0.85); margin-top: 4px; }
+
     #cam-section { width: 100%; max-width: 420px; display: flex; flex-direction: column; align-items: center; gap: 0.75rem; }
     video, #preview-img { width: 100%; border-radius: 12px; border: 1px solid #ddd; background: #000; display: block; }
     #preview-img { display: none; }
     canvas { display: none; }
-    #status { font-size: 14px; color: #666; text-align: center; min-height: 20px; }
-    #spinner { display: none; font-size: 28px; color: #1a73e8; animation: spin 1s linear infinite; }
-    @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-    .btn-main { width: 100%; padding: 16px; font-size: 18px; font-weight: 600; border-radius: 14px; border: none; cursor: pointer; background: #1a73e8; color: #fff; display: flex; align-items: center; justify-content: center; gap: 10px; }
+
+    #status { font-size: 14px; color: #555; text-align: center; min-height: 20px; padding: 0 8px; }
+
+    #progress-bar-wrap { width: 100%; max-width: 420px; height: 6px; background: #e0e0e0; border-radius: 99px; display: none; }
+    #progress-bar { height: 100%; width: 0%; background: #1a73e8; border-radius: 99px; transition: width 0.2s; }
+
+    .btn-main { width: 100%; padding: 16px; font-size: 18px; font-weight: 600; border-radius: 14px; border: none; cursor: pointer; background: #1a3e6e; color: #fff; display: flex; align-items: center; justify-content: center; gap: 10px; }
     .btn-main:disabled { background: #ccc; color: #888; cursor: not-allowed; }
-    .btn-main i { font-size: 22px; }
+
     .btn-secondary { width: 100%; padding: 12px; font-size: 15px; border-radius: 12px; border: 1px solid #ccc; background: #fff; color: #333; cursor: pointer; display: none; align-items: center; justify-content: center; gap: 8px; }
     .btn-secondary.visible { display: flex; }
+
     #manual-section { width: 100%; max-width: 420px; border-top: 1px solid #ddd; padding-top: 1rem; }
     #manual-section p { font-size: 13px; color: #888; margin-bottom: 8px; }
     #manual-date { width: 100%; padding: 12px; font-size: 16px; border-radius: 10px; border: 1px solid #ccc; background: #fff; color: #222; }
     .btn-manual { width: 100%; margin-top: 8px; padding: 12px; font-size: 15px; border-radius: 10px; border: 1px solid #ccc; background: #fff; color: #333; cursor: pointer; }
-    #version-tag { font-size: 11px; color: #aaa; text-align: center; }
+
+    #version-tag { font-size: 11px; color: #bbb; text-align: center; }
   </style>
 </head>
 <body>
@@ -41,95 +47,199 @@
     <div id="result-label"></div>
     <div id="result-detail"></div>
   </div>
+
   <div id="cam-section">
     <video id="video" autoplay playsinline muted></video>
     <canvas id="canvas"></canvas>
     <img id="preview-img" alt="Foto de la cédula" />
-    <div id="status">Iniciando cámara...</div>
-    <i class="ti ti-loader-2" id="spinner"></i>
+    <div id="status">Cargando OCR...</div>
+    <div id="progress-bar-wrap"><div id="progress-bar"></div></div>
     <button class="btn-main" id="btn-capture" disabled>
-      <i class="ti ti-scan"></i> ESCANEAR CÉDULA v5
+      📷 ESCANEAR CÉDULA v6
     </button>
     <button class="btn-secondary" id="btn-retry">
-      <i class="ti ti-refresh"></i> Sacar otra foto
+      🔄 Sacar otra foto
     </button>
   </div>
+
   <div id="manual-section">
-    <p>¿No funciona la cámara? Ingresá la fecha manualmente:</p>
+    <p>¿No se lee la cédula? Ingresá la fecha manualmente:</p>
     <input type="date" id="manual-date" />
     <button class="btn-manual" id="btn-manual">Verificar fecha</button>
   </div>
-  <div id="version-tag">v5 · Gemini Vision</div>
+
+  <div id="version-tag">v6 · OCR local · sin API</div>
 </div>
+
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <script>
-const GEMINI_KEY = 'AQ.Ab8RN6I_NChvGd6vC8S_cSEvz3lDAsn77vtZbVpbGPcxxo6rtw';
-const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_KEY}`;
+const video      = document.getElementById('video');
+const canvas     = document.getElementById('canvas');
+const preview    = document.getElementById('preview-img');
+const btnCapture = document.getElementById('btn-capture');
+const btnRetry   = document.getElementById('btn-retry');
+const statusEl   = document.getElementById('status');
+const progressWrap = document.getElementById('progress-bar-wrap');
+const progressBar  = document.getElementById('progress-bar');
+const banner     = document.getElementById('result-banner');
+const resultIcon = document.getElementById('result-icon');
+const resultLabel= document.getElementById('result-label');
+const resultDetail=document.getElementById('result-detail');
+const manualDate = document.getElementById('manual-date');
+const btnManual  = document.getElementById('btn-manual');
 
-const video=document.getElementById('video'),canvas=document.getElementById('canvas'),preview=document.getElementById('preview-img'),btnCapture=document.getElementById('btn-capture'),btnRetry=document.getElementById('btn-retry'),statusEl=document.getElementById('status'),spinner=document.getElementById('spinner'),banner=document.getElementById('result-banner'),resultIcon=document.getElementById('result-icon'),resultLabel=document.getElementById('result-label'),resultDetail=document.getElementById('result-detail'),manualDate=document.getElementById('manual-date'),btnManual=document.getElementById('btn-manual');
+let worker = null;
 
-function showBanner(esMayor,edad,fechaNac){banner.className='result-banner '+(esMayor?'mayor':'menor');resultIcon.textContent=esMayor?'✅':'🚫';resultLabel.textContent=esMayor?'MAYOR DE EDAD':'MENOR DE EDAD';resultDetail.textContent='Nacimiento: '+fechaNac+'  •  Edad: '+edad+' años';window.scrollTo({top:0,behavior:'smooth'});}
+function showBanner(esMayor, edad, fechaNac) {
+  banner.className = 'result-banner ' + (esMayor ? 'mayor' : 'menor');
+  resultIcon.textContent  = esMayor ? '✅' : '🚫';
+  resultLabel.textContent = esMayor ? 'MAYOR DE EDAD' : 'MENOR DE EDAD';
+  resultDetail.textContent = 'Nacimiento: ' + fechaNac + '  •  Edad: ' + edad + ' años';
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
 
-function calcularEdad(fechaStr){const hoy=new Date(),nac=new Date(fechaStr);if(isNaN(nac))return null;let edad=hoy.getFullYear()-nac.getFullYear();const m=hoy.getMonth()-nac.getMonth();if(m<0||(m===0&&hoy.getDate()<nac.getDate()))edad--;return edad;}
+function calcularEdad(fechaStr) {
+  const hoy = new Date(), nac = new Date(fechaStr);
+  if (isNaN(nac)) return null;
+  let edad = hoy.getFullYear() - nac.getFullYear();
+  const m = hoy.getMonth() - nac.getMonth();
+  if (m < 0 || (m === 0 && hoy.getDate() < nac.getDate())) edad--;
+  return edad;
+}
 
-async function initCamera(){try{const s=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}}});video.srcObject=s;btnCapture.disabled=false;statusEl.textContent='Enfocá la cédula y presioná el botón.';}catch(e){statusEl.textContent='No se pudo acceder a la cámara. Usá el ingreso manual.';}}
+// Extrae fecha de nacimiento del texto OCR
+// Cédulas PY tienen: "FECHA DE NACIMIENTO DD-MM-YYYY" o "DD/MM/YYYY"
+function extraerFecha(texto) {
+  const t = texto.toUpperCase();
 
-function resetUI(){banner.className='result-banner';preview.style.display='none';btnRetry.classList.remove('visible');video.style.display='block';btnCapture.style.display='flex';btnCapture.disabled=false;statusEl.textContent='Enfocá la cédula y presioná el botón.';spinner.style.display='none';}
+  // Buscar patron después de "NACIMIENTO" o "NAC"
+  const patrones = [
+    /NACIMIENTO[^\d]*(\d{1,2})[-\/\.](\d{1,2})[-\/\.](\d{4})/,
+    /NAC[^\d]*(\d{1,2})[-\/\.](\d{1,2})[-\/\.](\d{4})/,
+    /(\d{2})[-\/\.](\d{2})[-\/\.](19\d{2}|20\d{2})/g,
+  ];
 
-btnCapture.addEventListener('click',async()=>{
-  canvas.width=video.videoWidth;canvas.height=video.videoHeight;
-  canvas.getContext('2d').drawImage(video,0,0);
-  const base64=canvas.toDataURL('image/jpeg',0.85).split(',')[1];
-  preview.src='data:image/jpeg;base64,'+base64;
-  preview.style.display='block';video.style.display='none';
-  btnCapture.style.display='none';btnRetry.classList.add('visible');
-  spinner.style.display='block';statusEl.textContent='Analizando cédula...';
-  banner.className='result-banner';
+  for (const pat of patrones) {
+    const m = t.match(pat);
+    if (m) {
+      let d, mo, y;
+      if (m[1] && m[2] && m[3]) {
+        d = m[1].padStart(2,'0');
+        mo = m[2].padStart(2,'0');
+        y = m[3];
+      } else {
+        // global match, tomar el primero que sea año de nacimiento plausible
+        const all = [...t.matchAll(/(\d{2})[-\/\.](\d{2})[-\/\.](19\d{2}|20[0-1]\d)/g)];
+        if (all.length === 0) continue;
+        // preferir el que tenga año más antiguo (nacimiento vs vencimiento)
+        const sorted = all.sort((a,b) => parseInt(a[3]) - parseInt(b[3]));
+        d = sorted[0][1]; mo = sorted[0][2]; y = sorted[0][3];
+      }
+      const fecha = y + '-' + mo + '-' + d;
+      const test = new Date(fecha + 'T12:00:00');
+      if (!isNaN(test) && test.getFullYear() > 1900 && test < new Date()) {
+        return fecha;
+      }
+    }
+  }
+  return null;
+}
 
-  try{
-    const resp=await fetch(GEMINI_URL,{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({
-        contents:[{parts:[
-          {inline_data:{mime_type:'image/jpeg',data:base64}},
-          {text:'Esta es una foto de una cédula de identidad paraguaya. Extraé ÚNICAMENTE la fecha de nacimiento. Respondé SOLO con un JSON así: {"fecha_nacimiento": "YYYY-MM-DD"} — sin texto adicional, sin explicaciones, sin markdown. Si no podés leer la fecha respondé: {"error": "no se pudo leer"}.'}
-        ]}],
-        generationConfig:{temperature:0,maxOutputTokens:100}
-      })
+async function initOCR() {
+  try {
+    worker = await Tesseract.createWorker('spa', 1, {
+      logger: m => {
+        if (m.status === 'recognizing text') {
+          const pct = Math.round(m.progress * 100);
+          progressBar.style.width = pct + '%';
+          statusEl.textContent = 'Leyendo cédula... ' + pct + '%';
+        }
+      }
     });
+    statusEl.textContent = 'Listo. Enfocá la cédula y presioná el botón.';
+    btnCapture.disabled = false;
+    await initCamera();
+  } catch(e) {
+    statusEl.textContent = '❌ Error al cargar OCR: ' + e.message;
+  }
+}
 
-    const data=await resp.json();
-    spinner.style.display='none';
+async function initCamera() {
+  try {
+    const s = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } }
+    });
+    video.srcObject = s;
+  } catch(e) {
+    statusEl.textContent = 'Sin acceso a cámara. Usá el ingreso manual.';
+    btnCapture.disabled = true;
+  }
+}
 
-    if(!resp.ok){statusEl.textContent='❌ Error API: '+(data.error?.message||resp.status);return;}
+function resetUI() {
+  banner.className = 'result-banner';
+  preview.style.display = 'none';
+  btnRetry.classList.remove('visible');
+  video.style.display = 'block';
+  btnCapture.style.display = 'flex';
+  btnCapture.disabled = false;
+  progressWrap.style.display = 'none';
+  progressBar.style.width = '0%';
+  statusEl.textContent = 'Listo. Enfocá la cédula y presioná el botón.';
+}
 
-    const text=data.candidates?.[0]?.content?.parts?.[0]?.text||'';
-    let parsed;
-    try{parsed=JSON.parse(text.replace(/```json|```/g,'').trim());}
-    catch{statusEl.textContent='⚠️ No se pudo leer la fecha. Intentá de nuevo.';return;}
+btnCapture.addEventListener('click', async () => {
+  canvas.width  = video.videoWidth;
+  canvas.height = video.videoHeight;
+  canvas.getContext('2d').drawImage(video, 0, 0);
 
-    if(parsed.error||!parsed.fecha_nacimiento){statusEl.textContent='⚠️ No se pudo leer la fecha. Intentá de nuevo o usá el ingreso manual.';return;}
+  const dataUrl = canvas.toDataURL('image/jpeg', 0.95);
+  preview.src = dataUrl;
+  preview.style.display = 'block';
+  video.style.display = 'none';
+  btnCapture.style.display = 'none';
+  btnRetry.classList.add('visible');
+  progressWrap.style.display = 'block';
+  progressBar.style.width = '0%';
+  statusEl.textContent = 'Iniciando lectura...';
+  banner.className = 'result-banner';
 
-    const edad=calcularEdad(parsed.fecha_nacimiento);
-    if(edad===null){statusEl.textContent='⚠️ Fecha inválida.';return;}
-    const fechaFmt=new Date(parsed.fecha_nacimiento+'T12:00:00').toLocaleDateString('es-PY',{day:'2-digit',month:'2-digit',year:'numeric'});
-    statusEl.textContent='';
-    showBanner(edad>=18,edad,fechaFmt);
+  try {
+    const { data: { text } } = await worker.recognize(dataUrl);
 
-  }catch(e){spinner.style.display='none';statusEl.textContent='❌ Error: '+e.message;}
+    progressWrap.style.display = 'none';
+
+    const fecha = extraerFecha(text);
+
+    if (!fecha) {
+      statusEl.textContent = '⚠️ No se pudo leer la fecha. Intentá con mejor luz o usá el ingreso manual.';
+      return;
+    }
+
+    const edad = calcularEdad(fecha);
+    if (edad === null) { statusEl.textContent = '⚠️ Fecha inválida.'; return; }
+
+    const fechaFmt = new Date(fecha + 'T12:00:00').toLocaleDateString('es-PY', { day:'2-digit', month:'2-digit', year:'numeric' });
+    statusEl.textContent = '';
+    showBanner(edad >= 18, edad, fechaFmt);
+
+  } catch(e) {
+    progressWrap.style.display = 'none';
+    statusEl.textContent = '❌ Error OCR: ' + e.message;
+  }
 });
 
-btnRetry.addEventListener('click',resetUI);
+btnRetry.addEventListener('click', resetUI);
 
-btnManual.addEventListener('click',()=>{
-  const val=manualDate.value;
-  if(!val){statusEl.textContent='Ingresá una fecha válida.';return;}
-  const edad=calcularEdad(val);
-  const fechaFmt=new Date(val+'T12:00:00').toLocaleDateString('es-PY',{day:'2-digit',month:'2-digit',year:'numeric'});
-  showBanner(edad>=18,edad,fechaFmt);
+btnManual.addEventListener('click', () => {
+  const val = manualDate.value;
+  if (!val) { statusEl.textContent = 'Ingresá una fecha válida.'; return; }
+  const edad = calcularEdad(val);
+  const fechaFmt = new Date(val + 'T12:00:00').toLocaleDateString('es-PY', { day:'2-digit', month:'2-digit', year:'numeric' });
+  showBanner(edad >= 18, edad, fechaFmt);
 });
 
-initCamera();
+initOCR();
 </script>
 </body>
 </html>
