@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
-  <title>✅ Verificador v4</title>
+  <title>✅ Verificador v5</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css" />
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -48,7 +48,7 @@
     <div id="status">Iniciando cámara...</div>
     <i class="ti ti-loader-2" id="spinner"></i>
     <button class="btn-main" id="btn-capture" disabled>
-      <i class="ti ti-scan"></i> ESCANEAR CÉDULA v4
+      <i class="ti ti-scan"></i> ESCANEAR CÉDULA v5
     </button>
     <button class="btn-secondary" id="btn-retry">
       <i class="ti ti-refresh"></i> Sacar otra foto
@@ -59,11 +59,11 @@
     <input type="date" id="manual-date" />
     <button class="btn-manual" id="btn-manual">Verificar fecha</button>
   </div>
-  <div id="version-tag">v4 · Gemini Vision</div>
+  <div id="version-tag">v5 · Gemini Vision</div>
 </div>
 <script>
 const GEMINI_KEY = 'AQ.Ab8RN6I_NChvGd6vC8S_cSEvz3lDAsn77vtZbVpbGPcxxo6rtw';
-const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_KEY}`;
+const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_KEY}`;
 
 const video=document.getElementById('video'),canvas=document.getElementById('canvas'),preview=document.getElementById('preview-img'),btnCapture=document.getElementById('btn-capture'),btnRetry=document.getElementById('btn-retry'),statusEl=document.getElementById('status'),spinner=document.getElementById('spinner'),banner=document.getElementById('result-banner'),resultIcon=document.getElementById('result-icon'),resultLabel=document.getElementById('result-label'),resultDetail=document.getElementById('result-detail'),manualDate=document.getElementById('manual-date'),btnManual=document.getElementById('btn-manual');
 
